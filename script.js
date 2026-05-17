@@ -145,10 +145,29 @@ projects.forEach(p => {
   main.appendChild(section);
 });
 
+// ── Scream ──
+const screamAudio = new Audio('assets/scream.mp3');
+function playScream() {
+  screamAudio.currentTime = 0;
+  screamAudio.play();
+}
+
+// ── End section ──
+const endSection = document.createElement('section');
+endSection.className = 'section hero';
+endSection.id = 'end';
+endSection.innerHTML = `
+  <div class="hero-text">
+    <h1 class="end-name">桝井孝暢？<span class="wakatta">おわかり<br>いただけただろうか？</span></h1>
+  </div>
+`;
+main.appendChild(endSection);
+endSection.querySelector('.end-name').addEventListener('mouseenter', playScream);
+
 // ── Dot navigation ──
 const dotNav = document.getElementById('dotNav');
 const scrollContainer = document.getElementById('scroll-container');
-const allSections = ['top', ...projects.map(p => p.id)];
+const allSections = ['top', ...projects.map(p => p.id), 'end'];
 
 allSections.forEach(id => {
   const a = document.createElement('a');
