@@ -147,6 +147,14 @@ projects.forEach(p => {
 
 // ── Scream ──
 const screamAudio = new Audio('assets/scream.mp3');
+screamAudio.preload = 'auto';
+screamAudio.load();
+
+// ブラウザのautoplay制限を最初のクリックで解除しておく
+document.addEventListener('click', () => {
+  screamAudio.play().then(() => screamAudio.pause()).catch(() => {});
+}, { once: true });
+
 function playScream() {
   screamAudio.currentTime = 0;
   screamAudio.play();
