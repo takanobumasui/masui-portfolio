@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@ マーク比較 - Google Fonts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Dancing+Script:wght@700&family=Lobster&family=Pacifico&family=Playfair+Display:ital,wght@0,900;1,900&family=Raleway:wght@800&family=Righteous&family=Satisfy&family=Permanent+Marker&family=Fredoka+One&family=Boogaloo&family=Patua+One&family=Titan+One&family=Alfa+Slab+One&family=Lilita+One&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0f0f;
+      color: #fff;
+      font-family: sans-serif;
+      padding: 40px 20px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.4rem;
+      color: #aaa;
+      margin-bottom: 40px;
+      letter-spacing: 0.1em;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 24px 16px 16px;
+      text-align: center;
+      transition: border-color 0.2s, transform 0.2s;
+      cursor: default;
+    }
+    .card:hover {
+      border-color: #555;
+      transform: translateY(-4px);
+    }
+    .at {
+      font-size: 96px;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .font-name {
+      font-size: 0.75rem;
+      color: #666;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .full-text {
+      font-size: 18px;
+      color: #999;
+      margin-top: 8px;
+    }
+
+    /* フォント指定 */
+    .abril      { font-family: 'Abril Fatface', serif; }
+    .dancing    { font-family: 'Dancing Script', cursive; }
+    .lobster    { font-family: 'Lobster', cursive; }
+    .pacifico   { font-family: 'Pacifico', cursive; }
+    .playfair   { font-family: 'Playfair Display', serif; font-weight: 900; font-style: italic; }
+    .raleway    { font-family: 'Raleway', sans-serif; font-weight: 800; }
+    .righteous  { font-family: 'Righteous', cursive; }
+    .satisfy    { font-family: 'Satisfy', cursive; }
+    .marker     { font-family: 'Permanent Marker', cursive; }
+    .fredoka    { font-family: 'Fredoka One', cursive; }
+    .boogaloo   { font-family: 'Boogaloo', cursive; }
+    .patua      { font-family: 'Patua One', cursive; }
+    .titan      { font-family: 'Titan One', cursive; }
+    .alfa       { font-family: 'Alfa Slab One', serif; }
+    .lilita     { font-family: 'Lilita One', cursive; }
+  </style>
+</head>
+<body>
+  <h1>@ マーク比較 — Google Fonts</h1>
+  <div class="grid">
+
+    <div class="card">
+      <span class="at lobster">@</span>
+      <div class="font-name">Lobster</div>
+      <div class="full-text lobster">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at pacifico">@</span>
+      <div class="font-name">Pacifico</div>
+      <div class="full-text pacifico">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at abril">@</span>
+      <div class="font-name">Abril Fatface</div>
+      <div class="full-text abril">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at dancing">@</span>
+      <div class="font-name">Dancing Script</div>
+      <div class="full-text dancing">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at playfair">@</span>
+      <div class="font-name">Playfair Display Italic</div>
+      <div class="full-text playfair">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at satisfy">@</span>
+      <div class="font-name">Satisfy</div>
+      <div class="full-text satisfy">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at marker">@</span>
+      <div class="font-name">Permanent Marker</div>
+      <div class="full-text marker">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at righteous">@</span>
+      <div class="font-name">Righteous</div>
+      <div class="full-text righteous">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at raleway">@</span>
+      <div class="font-name">Raleway ExtraBold</div>
+      <div class="full-text raleway">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at fredoka">@</span>
+      <div class="font-name">Fredoka One</div>
+      <div class="full-text fredoka">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at boogaloo">@</span>
+      <div class="font-name">Boogaloo</div>
+      <div class="full-text boogaloo">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at patua">@</span>
+      <div class="font-name">Patua One</div>
+      <div class="full-text patua">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at titan">@</span>
+      <div class="font-name">Titan One</div>
+      <div class="full-text titan">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at alfa">@</span>
+      <div class="font-name">Alfa Slab One</div>
+      <div class="full-text alfa">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at lilita">@</span>
+      <div class="font-name">Lilita One</div>
+      <div class="full-text lilita">hello@example.com</div>
+    </div>
+
+  </div>
+</body>
+</html>
