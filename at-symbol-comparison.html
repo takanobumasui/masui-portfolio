@@ -3,173 +3,298 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>@ マーク比較 - Google Fonts</title>
+  <title>@ マーク比較 - Digital Fonts</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Dancing+Script:wght@700&family=Lobster&family=Pacifico&family=Playfair+Display:ital,wght@0,900;1,900&family=Raleway:wght@800&family=Righteous&family=Satisfy&family=Permanent+Marker&family=Fredoka+One&family=Boogaloo&family=Patua+One&family=Titan+One&family=Alfa+Slab+One&family=Lilita+One&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=VT323&family=Press+Start+2P&family=Share+Tech+Mono&family=Audiowide&family=Michroma&family=Rajdhani:wght@700&family=Exo+2:wght@800&family=Russo+One&family=Aldrich&family=Black+Ops+One&family=Chakra+Petch:wght@700&family=Iceland&family=Jura:wght@700&family=Nova+Square&family=Oxanium:wght@800&family=Quantico:wght@700&family=Share+Tech&family=Syncopate:wght@700&family=Teko:wght@600&family=Titillium+Web:wght@700&family=Space+Mono:wght@700&family=Major+Mono+Display&family=Faster+One&family=Bebas+Neue&family=Changa:wght@700&family=Saira+Condensed:wght@700&family=Ubuntu+Mono:wght@700&family=Xanh+Mono&family=Courier+Prime:wght@700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #0f0f0f;
+      background: #070d14;
       color: #fff;
-      font-family: sans-serif;
+      font-family: 'Share Tech', monospace;
       padding: 40px 20px;
     }
     h1 {
       text-align: center;
-      font-size: 1.4rem;
-      color: #aaa;
+      font-size: 1.1rem;
+      color: #0ff;
+      margin-bottom: 8px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      font-family: 'Orbitron', sans-serif;
+      text-shadow: 0 0 12px #0ff8;
+    }
+    p.sub {
+      text-align: center;
+      color: #356;
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
       margin-bottom: 40px;
-      letter-spacing: 0.1em;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 24px;
-      max-width: 1200px;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      max-width: 1300px;
       margin: 0 auto;
     }
     .card {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
-      padding: 24px 16px 16px;
+      background: #0c141e;
+      border: 1px solid #1a2a3a;
+      border-radius: 6px;
+      padding: 20px 12px 14px;
       text-align: center;
-      transition: border-color 0.2s, transform 0.2s;
-      cursor: default;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #0ff4, transparent);
     }
     .card:hover {
-      border-color: #555;
-      transform: translateY(-4px);
+      border-color: #0ff5;
+      box-shadow: 0 0 20px #0ff2;
     }
     .at {
-      font-size: 96px;
+      font-size: 88px;
       line-height: 1.1;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       display: block;
+      color: #00e5ff;
+      text-shadow: 0 0 20px #00e5ff88;
     }
     .font-name {
-      font-size: 0.75rem;
-      color: #666;
-      letter-spacing: 0.05em;
+      font-size: 0.65rem;
+      color: #456;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
+      margin-bottom: 6px;
     }
     .full-text {
-      font-size: 18px;
-      color: #999;
-      margin-top: 8px;
+      font-size: 13px;
+      color: #2a6a7a;
     }
 
-    /* フォント指定 */
-    .abril      { font-family: 'Abril Fatface', serif; }
-    .dancing    { font-family: 'Dancing Script', cursive; }
-    .lobster    { font-family: 'Lobster', cursive; }
-    .pacifico   { font-family: 'Pacifico', cursive; }
-    .playfair   { font-family: 'Playfair Display', serif; font-weight: 900; font-style: italic; }
-    .raleway    { font-family: 'Raleway', sans-serif; font-weight: 800; }
-    .righteous  { font-family: 'Righteous', cursive; }
-    .satisfy    { font-family: 'Satisfy', cursive; }
-    .marker     { font-family: 'Permanent Marker', cursive; }
-    .fredoka    { font-family: 'Fredoka One', cursive; }
-    .boogaloo   { font-family: 'Boogaloo', cursive; }
-    .patua      { font-family: 'Patua One', cursive; }
-    .titan      { font-family: 'Titan One', cursive; }
-    .alfa       { font-family: 'Alfa Slab One', serif; }
-    .lilita     { font-family: 'Lilita One', cursive; }
+    .orbitron     { font-family: 'Orbitron', sans-serif; font-weight: 700; }
+    .vt323        { font-family: 'VT323', monospace; }
+    .pressstart   { font-family: 'Press Start 2P', cursive; font-size: 60px !important; }
+    .sharetech    { font-family: 'Share Tech Mono', monospace; }
+    .audiowide    { font-family: 'Audiowide', sans-serif; }
+    .michroma     { font-family: 'Michroma', sans-serif; }
+    .rajdhani     { font-family: 'Rajdhani', sans-serif; font-weight: 700; }
+    .exo2         { font-family: 'Exo 2', sans-serif; font-weight: 800; }
+    .russo        { font-family: 'Russo One', sans-serif; }
+    .aldrich      { font-family: 'Aldrich', sans-serif; }
+    .blackops     { font-family: 'Black Ops One', cursive; }
+    .chakra       { font-family: 'Chakra Petch', sans-serif; font-weight: 700; }
+    .iceland      { font-family: 'Iceland', cursive; }
+    .jura         { font-family: 'Jura', sans-serif; font-weight: 700; }
+    .novasquare   { font-family: 'Nova Square', cursive; }
+    .oxanium      { font-family: 'Oxanium', sans-serif; font-weight: 800; }
+    .quantico     { font-family: 'Quantico', sans-serif; font-weight: 700; }
+    .sharetech2   { font-family: 'Share Tech', sans-serif; }
+    .syncopate    { font-family: 'Syncopate', sans-serif; font-weight: 700; }
+    .teko         { font-family: 'Teko', sans-serif; font-weight: 600; }
+    .titillium    { font-family: 'Titillium Web', sans-serif; font-weight: 700; }
+    .spacemono    { font-family: 'Space Mono', monospace; font-weight: 700; }
+    .majormono    { font-family: 'Major Mono Display', monospace; }
+    .faster       { font-family: 'Faster One', cursive; }
+    .bebas        { font-family: 'Bebas Neue', cursive; }
+    .changa       { font-family: 'Changa', sans-serif; font-weight: 700; }
+    .saira        { font-family: 'Saira Condensed', sans-serif; font-weight: 700; }
+    .ubuntumono   { font-family: 'Ubuntu Mono', monospace; font-weight: 700; }
+    .xanhmono     { font-family: 'Xanh Mono', monospace; }
+    .courierprime { font-family: 'Courier Prime', monospace; font-weight: 700; }
   </style>
 </head>
 <body>
-  <h1>@ マーク比較 — Google Fonts</h1>
+  <h1>@ Symbol — Digital Fonts</h1>
+  <p class="sub">30 Google Fonts comparison</p>
   <div class="grid">
 
     <div class="card">
-      <span class="at lobster">@</span>
-      <div class="font-name">Lobster</div>
-      <div class="full-text lobster">hello@example.com</div>
+      <span class="at orbitron">@</span>
+      <div class="font-name">Orbitron</div>
+      <div class="full-text orbitron">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at pacifico">@</span>
-      <div class="font-name">Pacifico</div>
-      <div class="full-text pacifico">hello@example.com</div>
+      <span class="at vt323">@</span>
+      <div class="font-name">VT323</div>
+      <div class="full-text vt323">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at abril">@</span>
-      <div class="font-name">Abril Fatface</div>
-      <div class="full-text abril">hello@example.com</div>
+      <span class="at pressstart">@</span>
+      <div class="font-name">Press Start 2P</div>
+      <div class="full-text pressstart" style="font-size:9px">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at dancing">@</span>
-      <div class="font-name">Dancing Script</div>
-      <div class="full-text dancing">hello@example.com</div>
+      <span class="at sharetech">@</span>
+      <div class="font-name">Share Tech Mono</div>
+      <div class="full-text sharetech">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at playfair">@</span>
-      <div class="font-name">Playfair Display Italic</div>
-      <div class="full-text playfair">hello@example.com</div>
+      <span class="at audiowide">@</span>
+      <div class="font-name">Audiowide</div>
+      <div class="full-text audiowide">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at satisfy">@</span>
-      <div class="font-name">Satisfy</div>
-      <div class="full-text satisfy">hello@example.com</div>
+      <span class="at michroma">@</span>
+      <div class="font-name">Michroma</div>
+      <div class="full-text michroma">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at marker">@</span>
-      <div class="font-name">Permanent Marker</div>
-      <div class="full-text marker">hello@example.com</div>
+      <span class="at rajdhani">@</span>
+      <div class="font-name">Rajdhani</div>
+      <div class="full-text rajdhani">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at righteous">@</span>
-      <div class="font-name">Righteous</div>
-      <div class="full-text righteous">hello@example.com</div>
+      <span class="at exo2">@</span>
+      <div class="font-name">Exo 2</div>
+      <div class="full-text exo2">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at raleway">@</span>
-      <div class="font-name">Raleway ExtraBold</div>
-      <div class="full-text raleway">hello@example.com</div>
+      <span class="at russo">@</span>
+      <div class="font-name">Russo One</div>
+      <div class="full-text russo">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at fredoka">@</span>
-      <div class="font-name">Fredoka One</div>
-      <div class="full-text fredoka">hello@example.com</div>
+      <span class="at aldrich">@</span>
+      <div class="font-name">Aldrich</div>
+      <div class="full-text aldrich">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at boogaloo">@</span>
-      <div class="font-name">Boogaloo</div>
-      <div class="full-text boogaloo">hello@example.com</div>
+      <span class="at blackops">@</span>
+      <div class="font-name">Black Ops One</div>
+      <div class="full-text blackops">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at patua">@</span>
-      <div class="font-name">Patua One</div>
-      <div class="full-text patua">hello@example.com</div>
+      <span class="at chakra">@</span>
+      <div class="font-name">Chakra Petch</div>
+      <div class="full-text chakra">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at titan">@</span>
-      <div class="font-name">Titan One</div>
-      <div class="full-text titan">hello@example.com</div>
+      <span class="at iceland">@</span>
+      <div class="font-name">Iceland</div>
+      <div class="full-text iceland">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at alfa">@</span>
-      <div class="font-name">Alfa Slab One</div>
-      <div class="full-text alfa">hello@example.com</div>
+      <span class="at jura">@</span>
+      <div class="font-name">Jura</div>
+      <div class="full-text jura">hello@example.com</div>
     </div>
 
     <div class="card">
-      <span class="at lilita">@</span>
-      <div class="font-name">Lilita One</div>
-      <div class="full-text lilita">hello@example.com</div>
+      <span class="at novasquare">@</span>
+      <div class="font-name">Nova Square</div>
+      <div class="full-text novasquare">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at oxanium">@</span>
+      <div class="font-name">Oxanium</div>
+      <div class="full-text oxanium">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at quantico">@</span>
+      <div class="font-name">Quantico</div>
+      <div class="full-text quantico">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at sharetech2">@</span>
+      <div class="font-name">Share Tech</div>
+      <div class="full-text sharetech2">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at syncopate">@</span>
+      <div class="font-name">Syncopate</div>
+      <div class="full-text syncopate">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at teko">@</span>
+      <div class="font-name">Teko</div>
+      <div class="full-text teko">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at titillium">@</span>
+      <div class="font-name">Titillium Web</div>
+      <div class="full-text titillium">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at spacemono">@</span>
+      <div class="font-name">Space Mono</div>
+      <div class="full-text spacemono">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at majormono">@</span>
+      <div class="font-name">Major Mono Display</div>
+      <div class="full-text majormono">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at faster">@</span>
+      <div class="font-name">Faster One</div>
+      <div class="full-text faster">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at bebas">@</span>
+      <div class="font-name">Bebas Neue</div>
+      <div class="full-text bebas">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at changa">@</span>
+      <div class="font-name">Changa</div>
+      <div class="full-text changa">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at saira">@</span>
+      <div class="font-name">Saira Condensed</div>
+      <div class="full-text saira">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at ubuntumono">@</span>
+      <div class="font-name">Ubuntu Mono</div>
+      <div class="full-text ubuntumono">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at xanhmono">@</span>
+      <div class="font-name">Xanh Mono</div>
+      <div class="full-text xanhmono">hello@example.com</div>
+    </div>
+
+    <div class="card">
+      <span class="at courierprime">@</span>
+      <div class="font-name">Courier Prime</div>
+      <div class="full-text courierprime">hello@example.com</div>
     </div>
 
   </div>
