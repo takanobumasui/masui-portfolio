@@ -164,25 +164,36 @@
 
     let ctx = null;          // AudioContext (created on first tap)
     let wakaranaiBuf = null; // decoded AudioBuffer for わからない
-    let wakaranaiPending = null; // raw bytes before AudioContext exists
+    let wakaranaiPending = null;
+    let aoruBuf = null;      // decoded AudioBuffer for あおる
+    let aoruPending = null;
     let mqttClient = null;
 
-    // HTML Audio fallback for わからない (plays instantly from user gesture
-    // even before the decoded AudioBuffer is ready)
+    // HTML Audio fallbacks (play instantly even before AudioBuffer is decoded)
     const wakaranaiAudio = new Audio('assets/sounds/wakaranai.m4a');
     wakaranaiAudio.preload = 'auto';
+    const aoruAudio = new Audio('assets/sounds/aoru.m4a');
+    aoruAudio.preload = 'auto';
 
-    // Fetch the file up front; decode it once AudioContext is available
-    fetch('assets/sounds/wakaranai.m4a')
-      .then(r => r.arrayBuffer())
-      .then(ab => {
-        if (ctx) {
-          ctx.decodeAudioData(ab).then(b => { wakaranaiBuf = b; }).catch(() => {});
-        } else {
-          wakaranaiPending = ab;
-        }
-      })
-      .catch(() => {});
+    function prefetch(url, onReady) {
+      fetch(url)
+        .then(r => r.arrayBuffer())
+        .then(ab => {
+          if (ctx) {
+            ctx.decodeAudioData(ab).then(b => onReady(null, b)).catch(() => {});
+          } else {
+            onReady(ab, null); // store raw for later decode
+          }
+        })
+        .catch(() => {});
+    }
+
+    prefetch('assets/sounds/wakaranai.m4a', (raw, buf) => {
+      if (buf) wakaranaiBuf = buf; else wakaranaiPending = raw;
+    });
+    prefetch('assets/sounds/aoru.m4a', (raw, buf) => {
+      if (buf) aoruBuf = buf; else aoruPending = raw;
+    });
 
     // ── AudioContext init (capture phase = runs before any button handler) ──
     function initCtx() {
@@ -196,10 +207,12 @@
         ctx.resume();
       } catch (_) { return; }
       if (wakaranaiPending) {
-        ctx.decodeAudioData(wakaranaiPending)
-          .then(b => { wakaranaiBuf = b; })
-          .catch(() => {});
+        ctx.decodeAudioData(wakaranaiPending).then(b => { wakaranaiBuf = b; }).catch(() => {});
         wakaranaiPending = null;
+      }
+      if (aoruPending) {
+        ctx.decodeAudioData(aoruPending).then(b => { aoruBuf = b; }).catch(() => {});
+        aoruPending = null;
       }
     }
     document.addEventListener('pointerdown', initCtx, { capture: true, once: true });
@@ -285,16 +298,16 @@
           noise(t + 0.22, 0.1, 0.85);
           noise(t + 0.44, 0.1, 0.85);
           break;
-        case 8: { // あおる
-          const sw = ctx.createOscillator(), g = ctx.createGain();
-          sw.connect(g); g.connect(ctx.destination);
-          sw.type = 'sawtooth';
-          sw.frequency.setValueAtTime(130, t);
-          sw.frequency.exponentialRampToValueAtTime(1600, t + 0.55);
-          g.gain.setValueAtTime(0.38, t);
-          g.gain.setValueAtTime(0.38, t + 0.45);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.58);
-          sw.start(t); sw.stop(t + 0.62);
+        case 8: { // あおる — audio file
+          if (aoruBuf) {
+            const src = ctx.createBufferSource();
+            src.buffer = aoruBuf;
+            src.connect(ctx.destination);
+            src.start(t);
+          } else {
+            aoruAudio.currentTime = 0;
+            aoruAudio.play().catch(() => {});
+          }
           break;
         }
       }
