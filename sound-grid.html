@@ -167,6 +167,8 @@
     let wakaranaiPending = null;
     let aoruBuf = null;      // decoded AudioBuffer for あおる
     let aoruPending = null;
+    let hagemaBuf = null;    // decoded AudioBuffer for はげます
+    let hagemaPending = null;
     let mqttClient = null;
 
     // HTML Audio fallbacks (play instantly even before AudioBuffer is decoded)
@@ -174,6 +176,8 @@
     wakaranaiAudio.preload = 'auto';
     const aoruAudio = new Audio('assets/sounds/aoru.m4a');
     aoruAudio.preload = 'auto';
+    const hagemasuAudio = new Audio('assets/sounds/hagemasu.m4a');
+    hagemasuAudio.preload = 'auto';
 
     function prefetch(url, onReady) {
       fetch(url)
@@ -194,6 +198,9 @@
     prefetch('assets/sounds/aoru.m4a', (raw, buf) => {
       if (buf) aoruBuf = buf; else aoruPending = raw;
     });
+    prefetch('assets/sounds/hagemasu.m4a', (raw, buf) => {
+      if (buf) hagemaBuf = buf; else hagemaPending = raw;
+    });
 
     // ── AudioContext init (capture phase = runs before any button handler) ──
     function initCtx() {
@@ -213,6 +220,10 @@
       if (aoruPending) {
         ctx.decodeAudioData(aoruPending).then(b => { aoruBuf = b; }).catch(() => {});
         aoruPending = null;
+      }
+      if (hagemaPending) {
+        ctx.decodeAudioData(hagemaPending).then(b => { hagemaBuf = b; }).catch(() => {});
+        hagemaPending = null;
       }
     }
     document.addEventListener('pointerdown', initCtx, { capture: true, once: true });
@@ -265,12 +276,18 @@
           o(659, 'sine', t + 0.1, 0.75, 0.2);
           o(784, 'sine', t + 0.2, 0.9,  0.38);
           break;
-        case 3: // はげます
-          o(220, 'sawtooth', t, 0.35, 0.35);
-          o(330, 'sawtooth', t, 0.35, 0.35);
-          o(440, 'sawtooth', t, 0.35, 0.35);
-          o(523, 'sine', t + 0.14, 0.85, 0.32);
+        case 3: { // はげます — audio file
+          if (hagemaBuf) {
+            const src = ctx.createBufferSource();
+            src.buffer = hagemaBuf;
+            src.connect(ctx.destination);
+            src.start(t);
+          } else {
+            hagemasuAudio.currentTime = 0;
+            hagemasuAudio.play().catch(() => {});
+          }
           break;
+        }
         case 4: { // わからない — audio file
           if (wakaranaiBuf) {
             const src = ctx.createBufferSource();
