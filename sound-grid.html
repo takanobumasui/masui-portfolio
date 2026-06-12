@@ -166,6 +166,21 @@
     let audioUnlocked = false;
     let mqttClient = null;
 
+    // ── わからない audio file ──
+    let wakaranaiBuf = null;   // decoded AudioBuffer
+    let wakaranaiPending = null; // raw ArrayBuffer waiting for AudioContext
+
+    fetch('assets/sounds/wakaranai.m4a')
+      .then(r => r.arrayBuffer())
+      .then(ab => {
+        if (audioCtx) {
+          audioCtx.decodeAudioData(ab).then(buf => { wakaranaiBuf = buf; }).catch(() => {});
+        } else {
+          wakaranaiPending = ab; // decode later, on first gesture
+        }
+      })
+      .catch(() => {});
+
     // ── Audio unlock ──
     // iOS Safari requires a BufferSource to be started synchronously
     // within a user gesture before any other audio will play.
@@ -173,6 +188,13 @@
     function ensureAudio() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // decode pending file now that AudioContext exists
+        if (wakaranaiPending) {
+          audioCtx.decodeAudioData(wakaranaiPending)
+            .then(buf => { wakaranaiBuf = buf; })
+            .catch(() => {});
+          wakaranaiPending = null;
+        }
       }
       if (!audioUnlocked) {
         try {
@@ -238,19 +260,13 @@
           osc(ac, 440, 'sawtooth', t, 0.35, 0.35);
           osc(ac, 523, 'sine', t + 0.14, 0.85, 0.32);
           break;
-        case 4: { // わからない — FM wobble
-          const mod = ac.createOscillator();
-          const modG = ac.createGain();
-          const car = ac.createOscillator();
-          const carG = ac.createGain();
-          mod.frequency.value = 6; modG.gain.value = 90;
-          car.frequency.value = 350; car.type = 'sine';
-          mod.connect(modG); modG.connect(car.frequency);
-          car.connect(carG); carG.connect(ac.destination);
-          carG.gain.setValueAtTime(0.55, t);
-          carG.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
-          mod.start(t); car.start(t);
-          mod.stop(t + 0.85); car.stop(t + 0.85);
+        case 4: { // わからない — audio file
+          if (wakaranaiBuf) {
+            const src = ac.createBufferSource();
+            src.buffer = wakaranaiBuf;
+            src.connect(ac.destination);
+            src.start(t);
+          }
           break;
         }
         case 5: // しずかに — soft pad
