@@ -162,138 +162,139 @@
     const SESSION_ID = Math.random().toString(36).slice(2, 10);
     const presenceMap = new Map(); // sid → lastSeen (ms)
 
-    let audioCtx = null;
-    let audioUnlocked = false;
+    let ctx = null;          // AudioContext (created on first tap)
+    let wakaranaiBuf = null; // decoded AudioBuffer for わからない
+    let wakaranaiPending = null; // raw bytes before AudioContext exists
     let mqttClient = null;
 
-    // ── わからない audio file ──
-    let wakaranaiBuf = null;   // decoded AudioBuffer
-    let wakaranaiPending = null; // raw ArrayBuffer waiting for AudioContext
+    // HTML Audio fallback for わからない (plays instantly from user gesture
+    // even before the decoded AudioBuffer is ready)
+    const wakaranaiAudio = new Audio('assets/sounds/wakaranai.m4a');
+    wakaranaiAudio.preload = 'auto';
 
+    // Fetch the file up front; decode it once AudioContext is available
     fetch('assets/sounds/wakaranai.m4a')
       .then(r => r.arrayBuffer())
       .then(ab => {
-        if (audioCtx) {
-          audioCtx.decodeAudioData(ab).then(buf => { wakaranaiBuf = buf; }).catch(() => {});
+        if (ctx) {
+          ctx.decodeAudioData(ab).then(b => { wakaranaiBuf = b; }).catch(() => {});
         } else {
-          wakaranaiPending = ab; // decode later, on first gesture
+          wakaranaiPending = ab;
         }
       })
       .catch(() => {});
 
-    // ── Audio unlock ──
-    // iOS Safari requires a BufferSource to be started synchronously
-    // within a user gesture before any other audio will play.
-
-    function ensureAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        // decode pending file now that AudioContext exists
-        if (wakaranaiPending) {
-          audioCtx.decodeAudioData(wakaranaiPending)
-            .then(buf => { wakaranaiBuf = buf; })
-            .catch(() => {});
-          wakaranaiPending = null;
-        }
+    // ── AudioContext init (capture phase = runs before any button handler) ──
+    function initCtx() {
+      if (ctx) return;
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Silent BufferSource — the only reliable iOS Safari unlock trigger
+        const b = ctx.createBuffer(1, 1, ctx.sampleRate);
+        const s = ctx.createBufferSource();
+        s.buffer = b; s.connect(ctx.destination); s.start(0);
+        ctx.resume();
+      } catch (_) { return; }
+      if (wakaranaiPending) {
+        ctx.decodeAudioData(wakaranaiPending)
+          .then(b => { wakaranaiBuf = b; })
+          .catch(() => {});
+        wakaranaiPending = null;
       }
-      if (!audioUnlocked) {
-        try {
-          const buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-          const src = audioCtx.createBufferSource();
-          src.buffer = buf;
-          src.connect(audioCtx.destination);
-          src.start(0); // synchronous — unlocks iOS
-        } catch (_) {}
-        audioUnlocked = true;
-      }
-      return audioCtx;
     }
+    document.addEventListener('pointerdown', initCtx, { capture: true, once: true });
 
-    // ── Sound synthesis ──
+    // ── Sound helpers ──
 
-    function osc(ac, freq, type, t, vol, dur) {
-      const o = ac.createOscillator();
-      const g = ac.createGain();
-      o.connect(g); g.connect(ac.destination);
-      o.type = type;
-      o.frequency.setValueAtTime(freq, t);
+    function o(freq, type, t, vol, dur) {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
       g.gain.setValueAtTime(Math.min(vol * 0.55, 0.55), t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.start(t); o.stop(t + dur + 0.02);
+      osc.start(t); osc.stop(t + dur + 0.02);
     }
 
-    function noiseBlast(ac, t, dur, vol) {
-      const len = Math.ceil(ac.sampleRate * dur);
-      const buf = ac.createBuffer(1, len, ac.sampleRate);
+    function noise(t, dur, vol) {
+      const len = Math.ceil(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
       const d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      const src = ac.createBufferSource();
-      src.buffer = buf;
-      const g = ac.createGain();
-      src.connect(g); g.connect(ac.destination);
+      const src = ctx.createBufferSource(), g = ctx.createGain();
+      src.buffer = buf; src.connect(g); g.connect(ctx.destination);
       g.gain.setValueAtTime(vol * 0.45, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       src.start(t);
     }
 
-    // Schedule the actual note nodes — called after context is confirmed running
-    function scheduleSound(id) {
-      const ac = audioCtx;
-      const t = ac.currentTime + 0.01;
+    // ── playSound ──
+    // When ctx is suspended (first tap), currentTime=0 and resume() is async.
+    // We schedule 200 ms ahead so resume() finishes before the note starts.
+    // On subsequent taps (ctx running) 5 ms is imperceptible.
+
+    function playSound(id) {
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      const t = ctx.currentTime + (ctx.state === 'running' ? 0.005 : 0.2);
+
       switch (id) {
-        case 0: // なとく — C5→A4 nod
-          osc(ac, 523, 'sine', t, 0.9, 0.22);
-          osc(ac, 440, 'sine', t + 0.18, 0.7, 0.38);
+        case 0: // なとく
+          o(523, 'sine', t, 0.9, 0.22);
+          o(440, 'sine', t + 0.18, 0.7, 0.38);
           break;
-        case 1: // びっくり — sharp sting
-          osc(ac, 1320, 'square', t, 0.5, 0.07);
-          osc(ac, 660,  'sine',   t + 0.04, 0.6, 0.28);
+        case 1: // びっくり
+          o(1320, 'square', t, 0.5, 0.07);
+          o(660,  'sine',   t + 0.04, 0.6, 0.28);
           break;
-        case 2: // いいね — C–E–G arpeggio
-          osc(ac, 523, 'sine', t,      0.7,  0.18);
-          osc(ac, 659, 'sine', t + 0.1, 0.75, 0.2);
-          osc(ac, 784, 'sine', t + 0.2, 0.9,  0.38);
+        case 2: // いいね
+          o(523, 'sine', t,       0.7,  0.18);
+          o(659, 'sine', t + 0.1, 0.75, 0.2);
+          o(784, 'sine', t + 0.2, 0.9,  0.38);
           break;
-        case 3: // はげます — power chord + punch
-          osc(ac, 220, 'sawtooth', t, 0.35, 0.35);
-          osc(ac, 330, 'sawtooth', t, 0.35, 0.35);
-          osc(ac, 440, 'sawtooth', t, 0.35, 0.35);
-          osc(ac, 523, 'sine', t + 0.14, 0.85, 0.32);
+        case 3: // はげます
+          o(220, 'sawtooth', t, 0.35, 0.35);
+          o(330, 'sawtooth', t, 0.35, 0.35);
+          o(440, 'sawtooth', t, 0.35, 0.35);
+          o(523, 'sine', t + 0.14, 0.85, 0.32);
           break;
         case 4: { // わからない — audio file
           if (wakaranaiBuf) {
-            const src = ac.createBufferSource();
+            const src = ctx.createBufferSource();
             src.buffer = wakaranaiBuf;
-            src.connect(ac.destination);
+            src.connect(ctx.destination);
             src.start(t);
+          } else {
+            // AudioBuffer not decoded yet → HTML Audio fallback
+            wakaranaiAudio.currentTime = 0;
+            wakaranaiAudio.play().catch(() => {});
           }
           break;
         }
-        case 5: // しずかに — soft pad
-          osc(ac, 220, 'sine', t,       0.25, 1.6);
-          osc(ac, 330, 'sine', t + 0.06, 0.18, 1.5);
-          osc(ac, 440, 'sine', t + 0.12, 0.12, 1.4);
+        case 5: // しずかに
+          o(220, 'sine', t,        0.25, 1.6);
+          o(330, 'sine', t + 0.06, 0.18, 1.5);
+          o(440, 'sine', t + 0.12, 0.12, 1.4);
           break;
-        case 6: // わらう — ha-ha staccato
+        case 6: // わらう
           [0, 0.19, 0.38].forEach((dt, i) =>
-            osc(ac, 523 + i * 90, 'sine', t + dt, 0.85, 0.13));
+            o(523 + i * 90, 'sine', t + dt, 0.85, 0.13));
           break;
-        case 7: // パチパチ — clap noise
-          noiseBlast(ac, t,       0.1, 0.85);
-          noiseBlast(ac, t + 0.22, 0.1, 0.85);
-          noiseBlast(ac, t + 0.44, 0.1, 0.85);
+        case 7: // パチパチ
+          noise(t,        0.1, 0.85);
+          noise(t + 0.22, 0.1, 0.85);
+          noise(t + 0.44, 0.1, 0.85);
           break;
-        case 8: { // あおる — rising sweep
-          const o = ac.createOscillator();
-          const g = ac.createGain();
-          o.connect(g); g.connect(ac.destination);
-          o.type = 'sawtooth';
-          o.frequency.setValueAtTime(130, t);
-          o.frequency.exponentialRampToValueAtTime(1600, t + 0.55);
+        case 8: { // あおる
+          const sw = ctx.createOscillator(), g = ctx.createGain();
+          sw.connect(g); g.connect(ctx.destination);
+          sw.type = 'sawtooth';
+          sw.frequency.setValueAtTime(130, t);
+          sw.frequency.exponentialRampToValueAtTime(1600, t + 0.55);
           g.gain.setValueAtTime(0.38, t);
           g.gain.setValueAtTime(0.38, t + 0.45);
           g.gain.exponentialRampToValueAtTime(0.0001, t + 0.58);
-          o.start(t); o.stop(t + 0.62);
+          sw.start(t); sw.stop(t + 0.62);
           break;
         }
       }
@@ -321,16 +322,6 @@
       gridEl.appendChild(btn);
       btnEls.push(btn);
     });
-
-    function playSound(id) {
-      const ac = ensureAudio(); // create + unlock synchronously
-      if (ac.state === 'suspended') {
-        // resume is async; schedule the sound once it resolves
-        ac.resume().then(() => scheduleSound(id));
-      } else {
-        scheduleSound(id);
-      }
-    }
 
     function tap(id, isLocal) {
       playSound(id);
