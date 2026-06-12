@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>sound grid</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #000;
+      --fg: #fff;
+      --border: rgba(255,255,255,0.15);
+      --dim: rgba(255,255,255,0.35);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Shippori Mincho', serif;
+      overflow: hidden;
+    }
+
+    .page {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(1rem, 3vh, 2rem);
+      padding: 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    header h1 {
+      font-size: clamp(1rem, 3vw, 1.4rem);
+      font-weight: 400;
+      letter-spacing: 0.4em;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+
+    .status {
+      font-size: clamp(0.6rem, 1.5vw, 0.75rem);
+      letter-spacing: 0.2em;
+      color: var(--dim);
+      min-height: 1.2em;
+    }
+
+    .listeners {
+      font-size: clamp(0.55rem, 1.4vw, 0.65rem);
+      letter-spacing: 0.15em;
+      color: rgba(255,255,255,0.2);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(4px, 1vmin, 8px);
+      width: min(calc(100vw - 3rem), calc(100vh - 10rem), 400px);
+    }
+
+    .btn {
+      aspect-ratio: 1;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--fg);
+      font-family: 'Shippori Mincho', serif;
+      font-size: clamp(0.65rem, 2.8vmin, 1rem);
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.06s, color 0.06s, border-color 0.06s;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background 0.3s;
+      pointer-events: none;
+    }
+
+    .btn.local {
+      background: var(--fg);
+      color: var(--bg);
+      border-color: var(--fg);
+    }
+
+    .btn.remote::after {
+      background: rgba(255,255,255,0.12);
+    }
+
+    .btn.remote {
+      border-color: rgba(255,255,255,0.5);
+    }
+
+    footer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .back-link {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: rgba(255,255,255,0.18);
+      text-decoration: none;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover { color: rgba(255,255,255,0.5); }
+
+    .mode-badge {
+      font-size: 0.55rem;
+      letter-spacing: 0.15em;
+      color: rgba(255,255,255,0.15);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>sound grid</h1>
+      <p class="status" id="status">— — —</p>
+      <p class="listeners" id="listeners"></p>
+    </header>
+
+    <div class="grid" id="grid"></div>
+
+    <footer>
+      <a class="back-link" href="index.html">← portfolio</a>
+      <span class="mode-badge" id="modeBadge"></span>
+    </footer>
+  </div>
+
+  <script>
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  Firebase Realtime Database の設定
+    //
+    //  1. https://console.firebase.google.com でプロジェクト作成
+    //  2. Realtime Database を有効化（テストモードで開始）
+    //  3. 下の FIREBASE_URL にデータベース URL を貼る
+    //     例: 'https://my-project-default-rtdb.firebaseio.com'
+    //
+    //  未設定の場合はソロモード（自分のブラウザのみ音が出る）
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const FIREBASE_URL = '';
+
+    const BUTTONS = [
+      'なとく',
+      'びっくり',
+      'いいね',
+      'はげます',
+      'わからない',
+      'しずかに',
+      'わらう',
+      'パチパチ',
+      'あおる',
+    ];
+
+    const SESSION_ID = Math.random().toString(36).slice(2, 10);
+    let audioCtx = null;
+    let connected = false;
+
+    function getAC() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    // ── Sound synthesis ──
+
+    function osc(ac, freq, type, t, vol, dur) {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.connect(g);
+      g.connect(ac.destination);
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(Math.min(vol * 0.55, 0.55), t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    }
+
+    function noiseBlast(ac, t, dur, vol) {
+      const len = Math.ceil(ac.sampleRate * dur);
+      const buf = ac.createBuffer(1, len, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const g = ac.createGain();
+      src.connect(g);
+      g.connect(ac.destination);
+      g.gain.setValueAtTime(vol * 0.45, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.start(t);
+    }
+
+    function playSound(id) {
+      const ac = getAC();
+      const t = ac.currentTime;
+
+      switch (id) {
+        case 0: // なとく — knowing nod (C5 → A4 fall)
+          osc(ac, 523, 'sine', t, 0.9, 0.22);
+          osc(ac, 440, 'sine', t + 0.18, 0.7, 0.38);
+          break;
+
+        case 1: // びっくり — surprised (sharp high sting)
+          osc(ac, 1320, 'square', t, 0.5, 0.07);
+          osc(ac, 660, 'sine', t + 0.04, 0.6, 0.28);
+          break;
+
+        case 2: // いいね — good (C-E-G rising arpeggio)
+          osc(ac, 523, 'sine', t, 0.7, 0.18);
+          osc(ac, 659, 'sine', t + 0.1, 0.75, 0.2);
+          osc(ac, 784, 'sine', t + 0.2, 0.9, 0.38);
+          break;
+
+        case 3: // はげます — encourage (power chord + punch)
+          osc(ac, 220, 'sawtooth', t, 0.35, 0.35);
+          osc(ac, 330, 'sawtooth', t, 0.35, 0.35);
+          osc(ac, 440, 'sawtooth', t, 0.35, 0.35);
+          osc(ac, 523, 'sine', t + 0.14, 0.85, 0.32);
+          break;
+
+        case 4: { // わからない — confused (FM wobble)
+          const mod = ac.createOscillator();
+          const modGain = ac.createGain();
+          const car = ac.createOscillator();
+          const carGain = ac.createGain();
+          mod.frequency.value = 6;
+          modGain.gain.value = 90;
+          car.frequency.value = 350;
+          car.type = 'sine';
+          mod.connect(modGain);
+          modGain.connect(car.frequency);
+          car.connect(carGain);
+          carGain.connect(ac.destination);
+          carGain.gain.setValueAtTime(0.55, t);
+          carGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+          mod.start(t); car.start(t);
+          mod.stop(t + 0.85); car.stop(t + 0.85);
+          break;
+        }
+
+        case 5: // しずかに — quiet (soft long pad)
+          osc(ac, 220, 'sine', t, 0.25, 1.6);
+          osc(ac, 330, 'sine', t + 0.06, 0.18, 1.5);
+          osc(ac, 440, 'sine', t + 0.12, 0.12, 1.4);
+          break;
+
+        case 6: // わらう — laugh (ha-ha-ha staccato)
+          [0, 0.19, 0.38].forEach((dt, i) => {
+            osc(ac, 523 + i * 90, 'sine', t + dt, 0.85, 0.13);
+          });
+          break;
+
+        case 7: // パチパチ — clap (noise bursts)
+          noiseBlast(ac, t, 0.1, 0.85);
+          noiseBlast(ac, t + 0.22, 0.1, 0.85);
+          noiseBlast(ac, t + 0.44, 0.1, 0.85);
+          break;
+
+        case 8: { // あおる — hype (rising sawtooth sweep)
+          const o = ac.createOscillator();
+          const g = ac.createGain();
+          o.connect(g);
+          g.connect(ac.destination);
+          o.type = 'sawtooth';
+          o.frequency.setValueAtTime(130, t);
+          o.frequency.exponentialRampToValueAtTime(1600, t + 0.55);
+          g.gain.setValueAtTime(0.38, t);
+          g.gain.setValueAtTime(0.38, t + 0.45);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.58);
+          o.start(t); o.stop(t + 0.62);
+          break;
+        }
+      }
+    }
+
+    // ── Build grid ──
+
+    const grid = document.getElementById('grid');
+    const btnEls = [];
+
+    BUTTONS.forEach((label, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = label;
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        tap(i, true);
+      });
+      grid.appendChild(btn);
+      btnEls.push(btn);
+    });
+
+    function tap(id, isLocal) {
+      playSound(id);
+      flash(id, isLocal ? 'local' : 'remote');
+      if (isLocal && FIREBASE_URL) sendEvent(id);
+    }
+
+    function flash(id, cls) {
+      const btn = btnEls[id];
+      btn.classList.add(cls);
+      setTimeout(() => btn.classList.remove(cls), cls === 'local' ? 220 : 400);
+    }
+
+    // ── Firebase REST / SSE ──
+
+    async function sendEvent(id) {
+      try {
+        await fetch(`${FIREBASE_URL}/soundgrid/taps.json`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ b: id, sid: SESSION_ID, at: Date.now() }),
+        });
+      } catch (_) {}
+    }
+
+    function updateStatus() {
+      const statusEl = document.getElementById('status');
+      if (!FIREBASE_URL) {
+        statusEl.textContent = '— solo mode —';
+        document.getElementById('modeBadge').textContent = 'Firebase 未設定';
+        return;
+      }
+      statusEl.textContent = connected ? '接続済' : '接続中...';
+    }
+
+    function listenEvents() {
+      updateStatus();
+      if (!FIREBASE_URL) return;
+
+      const seenKeys = new Set();
+      const es = new EventSource(`${FIREBASE_URL}/soundgrid/taps.json`);
+
+      es.addEventListener('put', (e) => {
+        const d = JSON.parse(e.data);
+        if (d.data) Object.keys(d.data).forEach(k => seenKeys.add(k));
+        connected = true;
+        updateStatus();
+      });
+
+      es.addEventListener('patch', (e) => {
+        const d = JSON.parse(e.data);
+        if (!d.data) return;
+        Object.entries(d.data).forEach(([key, val]) => {
+          if (seenKeys.has(key)) return;
+          seenKeys.add(key);
+          if (val && val.sid !== SESSION_ID) {
+            tap(val.b, false);
+          }
+        });
+      });
+
+      es.onerror = () => {
+        connected = false;
+        updateStatus();
+      };
+
+      // Presence heartbeat
+      const presencePath = `${FIREBASE_URL}/soundgrid/presence/${SESSION_ID}.json`;
+      async function heartbeat() {
+        try {
+          await fetch(presencePath, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ at: Date.now() }),
+          });
+        } catch (_) {}
+      }
+
+      heartbeat();
+      const hbInterval = setInterval(heartbeat, 20_000);
+
+      // Count online users (those with heartbeat within 90s)
+      async function updateListeners() {
+        try {
+          const res = await fetch(`${FIREBASE_URL}/soundgrid/presence.json`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (!data) { setListenerText(1); return; }
+          const now = Date.now();
+          const active = Object.values(data).filter(v => v && now - v.at < 90_000).length;
+          setListenerText(Math.max(active, 1));
+        } catch (_) {}
+      }
+
+      function setListenerText(n) {
+        const el = document.getElementById('listeners');
+        el.textContent = n <= 1 ? '誰も聴いていません' : `${n} 人が聴いています`;
+      }
+
+      updateListeners();
+      setInterval(updateListeners, 15_000);
+
+      window.addEventListener('beforeunload', () => {
+        clearInterval(hbInterval);
+        // best-effort DELETE presence on leave
+        const data = JSON.stringify(null);
+        try { navigator.sendBeacon(`${presencePath}`, data); } catch (_) {}
+        fetch(presencePath, { method: 'DELETE', keepalive: true }).catch(() => {});
+      });
+    }
+
+    listenEvents();
+
+    // Unlock audio context on first touch (browser autoplay policy)
+    document.addEventListener('pointerdown', () => {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }, { once: true });
+  </script>
+</body>
+</html>
