@@ -163,13 +163,27 @@
     const presenceMap = new Map(); // sid → lastSeen (ms)
 
     let audioCtx = null;
+    let audioUnlocked = false;
     let mqttClient = null;
 
-    // ── Audio context ──
+    // ── Audio unlock ──
+    // iOS Safari requires a BufferSource to be started synchronously
+    // within a user gesture before any other audio will play.
 
-    function getAC() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+    function ensureAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (!audioUnlocked) {
+        try {
+          const buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+          const src = audioCtx.createBufferSource();
+          src.buffer = buf;
+          src.connect(audioCtx.destination);
+          src.start(0); // synchronous — unlocks iOS
+        } catch (_) {}
+        audioUnlocked = true;
+      }
       return audioCtx;
     }
 
@@ -200,9 +214,10 @@
       src.start(t);
     }
 
-    function playSound(id) {
-      const ac = getAC();
-      const t = ac.currentTime;
+    // Schedule the actual note nodes — called after context is confirmed running
+    function scheduleSound(id) {
+      const ac = audioCtx;
+      const t = ac.currentTime + 0.01;
       switch (id) {
         case 0: // なとく — C5→A4 nod
           osc(ac, 523, 'sine', t, 0.9, 0.22);
@@ -290,6 +305,16 @@
       gridEl.appendChild(btn);
       btnEls.push(btn);
     });
+
+    function playSound(id) {
+      const ac = ensureAudio(); // create + unlock synchronously
+      if (ac.state === 'suspended') {
+        // resume is async; schedule the sound once it resolves
+        ac.resume().then(() => scheduleSound(id));
+      } else {
+        scheduleSound(id);
+      }
+    }
 
     function tap(id, isLocal) {
       playSound(id);
@@ -387,12 +412,12 @@
       });
     }
 
-    initMQTT();
-
-    // Unlock AudioContext on first touch (browser autoplay policy)
-    document.addEventListener('pointerdown', () => {
-      if (audioCtx?.state === 'suspended') audioCtx.resume();
-    }, { once: true });
+    try {
+      initMQTT();
+    } catch (e) {
+      // MQTT library not available — solo mode (sounds still work locally)
+      document.getElementById('status').textContent = '— solo mode —';
+    }
   </script>
 </body>
 </html>
