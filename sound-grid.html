@@ -171,6 +171,36 @@
       color: var(--fg);
       border-color: rgba(255,255,255,0.5);
     }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.9rem;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.3s ease;
+    }
+
+    #overlay h2 {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 300;
+      font-size: clamp(1.1rem, 5vw, 1.8rem);
+      letter-spacing: 0.4em;
+      color: rgba(255,255,255,0.85);
+    }
+
+    #overlay p {
+      font-size: clamp(0.6rem, 2vw, 0.72rem);
+      letter-spacing: 0.3em;
+      color: rgba(255,255,255,0.28);
+    }
   </style>
 </head>
 <body>
@@ -187,6 +217,11 @@
       <input id="textInput" type="text" maxlength="7" placeholder="ひらがな（7文字まで）" autocomplete="off" autocorrect="off" spellcheck="false">
       <button id="sendBtn">send</button>
     </div>
+  </div>
+
+  <div id="overlay">
+    <h2>タップして開始</h2>
+    <p>sound grid</p>
   </div>
 
   <!-- MQTT.js — public broker, no account needed -->
@@ -295,6 +330,16 @@
       secretPending.clear();
     }
     document.addEventListener('pointerdown', initCtx, { capture: true, once: true });
+
+    // ── Tap-to-start overlay ──
+    // Forces AudioContext creation on user gesture so sounds are ready immediately
+    // for both local presses and incoming remote taps.
+    const overlay = document.getElementById('overlay');
+    overlay.addEventListener('pointerdown', () => {
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+      setTimeout(() => overlay.remove(), 320);
+    }, { once: true });
 
     // ── Sound helpers ──
 
