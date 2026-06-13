@@ -419,9 +419,11 @@
 
     function tap(id, isLocal) {
       playSound(id);
-      flash(id, isLocal ? 'local' : 'remote');
-      if (isLocal && mqttClient?.connected) {
-        mqttClient.publish(TOPIC_TAPS, JSON.stringify({ b: id, sid: SESSION_ID }));
+      if (isLocal) {
+        flash(id, 'local');
+        if (mqttClient?.connected) {
+          mqttClient.publish(TOPIC_TAPS, JSON.stringify({ b: id, sid: SESSION_ID }));
+        }
       }
     }
 
