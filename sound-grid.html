@@ -248,14 +248,6 @@
     let hagemaPending = null;
     let mqttClient = null;
 
-    // HTML Audio fallbacks (play instantly even before AudioBuffer is decoded)
-    const wakaranaiAudio = new Audio('assets/sounds/wakaranai.m4a');
-    wakaranaiAudio.preload = 'auto';
-    const aoruAudio = new Audio('assets/sounds/aoru.m4a');
-    aoruAudio.preload = 'auto';
-    const hagemasuAudio = new Audio('assets/sounds/hagemasu.m4a');
-    hagemasuAudio.preload = 'auto';
-
     function prefetch(url, onReady) {
       fetch(url)
         .then(r => r.arrayBuffer())
@@ -263,7 +255,15 @@
           if (ctx) {
             ctx.decodeAudioData(ab).then(b => onReady(null, b)).catch(() => {});
           } else {
-            onReady(ab, null); // store raw for later decode
+            // OfflineAudioContext needs no user gesture — decode immediately
+            try {
+              const oCtx = new OfflineAudioContext(2, 1, 44100);
+              oCtx.decodeAudioData(ab.slice(0))
+                .then(b => onReady(null, b))
+                .catch(() => onReady(ab, null));
+            } catch (_) {
+              onReady(ab, null);
+            }
           }
         })
         .catch(() => {});
@@ -290,12 +290,8 @@
 
     const secretBufs    = new Map(); // key → decoded AudioBuffer
     const secretPending = new Map(); // key → raw ArrayBuffer (decode待ち)
-    const secretAudios  = new Map(); // key → HTML Audio (即時フォールバック)
 
     Object.entries(SECRET_CODES).forEach(([key, url]) => {
-      const a = new Audio(url);
-      a.preload = 'auto';
-      secretAudios.set(key, a);
       prefetch(url, (raw, buf) => {
         if (buf) secretBufs.set(key, buf); else secretPending.set(key, raw);
       });
@@ -401,9 +397,6 @@
             src.buffer = hagemaBuf;
             src.connect(ctx.destination);
             src.start(t);
-          } else {
-            hagemasuAudio.currentTime = 0;
-            hagemasuAudio.play().catch(() => {});
           }
           break;
         }
@@ -413,10 +406,6 @@
             src.buffer = wakaranaiBuf;
             src.connect(ctx.destination);
             src.start(t);
-          } else {
-            // AudioBuffer not decoded yet → HTML Audio fallback
-            wakaranaiAudio.currentTime = 0;
-            wakaranaiAudio.play().catch(() => {});
           }
           break;
         }
@@ -440,9 +429,6 @@
             src.buffer = aoruBuf;
             src.connect(ctx.destination);
             src.start(t);
-          } else {
-            aoruAudio.currentTime = 0;
-            aoruAudio.play().catch(() => {});
           }
           break;
         }
@@ -490,9 +476,13 @@
 
     // ── Secret code playback ──
     function playSecretAudio(key) {
-      initCtx();
       if (!ctx) return;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === 'suspended') {
+        const ub = ctx.createBuffer(1, 1, ctx.sampleRate);
+        const us = ctx.createBufferSource();
+        us.buffer = ub; us.connect(ctx.destination); us.start(0);
+        ctx.resume();
+      }
       const t = ctx.currentTime + (ctx.state === 'running' ? 0.001 : 0.2);
       const buf = secretBufs.get(key);
       if (buf) {
@@ -500,9 +490,6 @@
         src.buffer = buf;
         src.connect(ctx.destination);
         src.start(t);
-      } else {
-        const a = secretAudios.get(key);
-        if (a) { a.currentTime = 0; a.play().catch(() => {}); }
       }
     }
 
