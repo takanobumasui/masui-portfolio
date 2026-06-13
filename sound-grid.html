@@ -54,7 +54,10 @@
       letter-spacing: 0.2em;
       color: var(--dim);
       min-height: 1.2em;
+      transition: color 0.3s;
     }
+    .status.is-connecting   { color: #00b4d8; }
+    .status.is-reconnecting { color: #fbbf24; }
 
     .listeners {
       font-size: clamp(0.55rem, 1.4vw, 0.65rem);
@@ -173,7 +176,7 @@
   <div class="page">
     <header>
       <h1>sound grid</h1>
-      <p class="status" id="status">接続中…</p>
+      <p class="status is-connecting" id="status">接続中…</p>
       <p class="listeners" id="listeners"></p>
     </header>
 
@@ -514,6 +517,13 @@
       }
     }
 
+    // ── Status helper ──
+    function setStatus(text, cls) {
+      const el = document.getElementById('status');
+      el.textContent = text;
+      el.className = 'status' + (cls ? ' ' + cls : '');
+    }
+
     // ── MQTT connection ──
 
     function initMQTT() {
@@ -535,16 +545,16 @@
 
       client.on('connect', () => {
         client.subscribe([TOPIC_TAPS, TOPIC_PRESENCE, TOPIC_TEXTS]);
-        document.getElementById('status').textContent = '接続済';
+        setStatus('接続済');
         publishPresence();
       });
 
       client.on('reconnect', () => {
-        document.getElementById('status').textContent = '再接続中…';
+        setStatus('再接続中…', 'is-reconnecting');
       });
 
       client.on('offline', () => {
-        document.getElementById('status').textContent = '— offline —';
+        setStatus('— offline —');
       });
 
       client.on('message', (topic, payload) => {
@@ -586,7 +596,7 @@
       initMQTT();
     } catch (e) {
       // MQTT library not available — solo mode (sounds still work locally)
-      document.getElementById('status').textContent = '— solo mode —';
+      setStatus('— solo mode —');
     }
   </script>
 </body>
