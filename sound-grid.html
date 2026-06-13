@@ -328,7 +328,7 @@
     function playSound(id) {
       if (!ctx) return;
       if (ctx.state === 'suspended') ctx.resume();
-      const t = ctx.currentTime + (ctx.state === 'running' ? 0.005 : 0.2);
+      const t = ctx.currentTime + (ctx.state === 'running' ? 0.001 : 0.2);
 
       switch (id) {
         case 0: // なとく
@@ -442,7 +442,7 @@
       initCtx();
       if (!ctx) return;
       if (ctx.state === 'suspended') ctx.resume();
-      const t = ctx.currentTime + (ctx.state === 'running' ? 0.005 : 0.2);
+      const t = ctx.currentTime + (ctx.state === 'running' ? 0.001 : 0.2);
       const buf = secretBufs.get(key);
       if (buf) {
         const src = ctx.createBufferSource();
@@ -528,7 +528,7 @@
     // ── MQTT connection ──
 
     function initMQTT() {
-      const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+      const client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
         clientId: `sg_${SESSION_ID}`,
         clean: true,
         connectTimeout: 10_000,
