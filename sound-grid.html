@@ -115,22 +115,58 @@
       background: rgba(255,255,255,0.1);
     }
 
-    footer {
+    .send-bar {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.35rem;
+      gap: 6px;
+      width: min(calc(100vw - 3rem), calc(100vh - 10rem), 400px);
     }
 
-    .back-link {
-      font-size: 0.6rem;
-      letter-spacing: 0.2em;
-      color: rgba(255,255,255,0.18);
-      text-decoration: none;
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      transition: color 0.2s;
+    .send-bar input {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 0 0.8rem;
+      height: 44px;
+      font-family: 'Shippori Mincho', serif;
+      font-size: clamp(0.8rem, 3vmin, 1rem);
+      letter-spacing: 0.08em;
+      outline: none;
+      -webkit-appearance: none;
+      border-radius: 0;
     }
-    .back-link:hover { color: rgba(255,255,255,0.5); }
+
+    .send-bar input::placeholder {
+      color: rgba(255,255,255,0.18);
+      font-size: 0.7em;
+    }
+
+    .send-bar input:focus {
+      border-color: rgba(255,255,255,0.4);
+    }
+
+    .send-bar button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: rgba(255,255,255,0.5);
+      height: 44px;
+      padding: 0 1.2rem;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.2s, border-color 0.2s;
+      -webkit-appearance: none;
+      border-radius: 0;
+    }
+
+    .send-bar button:hover,
+    .send-bar button:active {
+      color: var(--fg);
+      border-color: rgba(255,255,255,0.5);
+    }
   </style>
 </head>
 <body>
@@ -143,9 +179,10 @@
 
     <div class="grid" id="grid"></div>
 
-    <footer>
-      <a class="back-link" href="index.html">← portfolio</a>
-    </footer>
+    <div class="send-bar">
+      <input id="textInput" type="text" maxlength="7" placeholder="ひらがな（7文字まで）" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button id="sendBtn">send</button>
+    </div>
   </div>
 
   <!-- MQTT.js — public broker, no account needed -->
@@ -158,6 +195,7 @@
 
     const TOPIC_TAPS     = `${ROOM}/taps`;
     const TOPIC_PRESENCE = `${ROOM}/presence`;
+    const TOPIC_TEXTS    = `${ROOM}/texts`;
 
     const SESSION_ID = Math.random().toString(36).slice(2, 10);
     const presenceMap = new Map(); // sid → lastSeen (ms)
@@ -367,6 +405,42 @@
       setTimeout(() => btn.classList.remove(cls), cls === 'local' ? 200 : 420);
     }
 
+    // ── Text reading (50-on placeholder via speechSynthesis) ──
+    // 一文字ずつキューに積む — send ボタンのクリックハンドラ内で呼ぶと
+    // iOS Safari のジェスチャー制限を回避できる
+    function speakText(text) {
+      const chars = [...text].filter(c => /\S/.test(c));
+      if (!chars.length) return;
+      if (!('speechSynthesis' in window)) return;
+      speechSynthesis.cancel();
+      chars.forEach(char => {
+        const utt = new SpeechSynthesisUtterance(char);
+        utt.lang = 'ja-JP';
+        utt.rate = 0.75;
+        utt.pitch = 1.0;
+        speechSynthesis.speak(utt);
+      });
+    }
+
+    // send ボタン / Enter キー
+    const textInput = document.getElementById('textInput');
+    const sendBtn   = document.getElementById('sendBtn');
+
+    function handleSend() {
+      const text = textInput.value.trim();
+      if (!text) return;
+      speakText(text);
+      if (mqttClient?.connected) {
+        mqttClient.publish(TOPIC_TEXTS, JSON.stringify({ text, sid: SESSION_ID }));
+      }
+      textInput.value = '';
+    }
+
+    sendBtn.addEventListener('click', handleSend);
+    textInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); handleSend(); }
+    });
+
     // ── Presence / listener count ──
 
     function updateListenerCount() {
@@ -407,7 +481,7 @@
       mqttClient = client;
 
       client.on('connect', () => {
-        client.subscribe([TOPIC_TAPS, TOPIC_PRESENCE]);
+        client.subscribe([TOPIC_TAPS, TOPIC_PRESENCE, TOPIC_TEXTS]);
         document.getElementById('status').textContent = '接続済';
         publishPresence();
       });
@@ -426,6 +500,9 @@
 
         if (topic === TOPIC_TAPS) {
           if (msg.sid !== SESSION_ID) tap(msg.b, false);
+
+        } else if (topic === TOPIC_TEXTS) {
+          if (msg.sid !== SESSION_ID && msg.text) speakText(msg.text);
 
         } else if (topic === TOPIC_PRESENCE) {
           if (msg.leave) {
