@@ -493,9 +493,6 @@
     }
 
     sendBtn.addEventListener('click', handleSend);
-    textInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); handleSend(); }
-    });
 
     // ── Presence / listener count ──
 
