@@ -240,6 +240,28 @@
       if (buf) hagemaBuf = buf; else hagemaPending = raw;
     });
 
+    // ── 裏コード ─────────────────────────────────────────────
+    // キー: 送信テキスト（スペース無視・完全一致）
+    // 値: 音声ファイルパス
+    const SECRET_CODES = {
+      'ちゃんみな': 'assets/sounds/secret_chanmina.m4a',
+      // 追加: 'キーワード': 'assets/sounds/ファイル名.m4a',
+    };
+    // ────────────────────────────────────────────────────────
+
+    const secretBufs    = new Map(); // key → decoded AudioBuffer
+    const secretPending = new Map(); // key → raw ArrayBuffer (decode待ち)
+    const secretAudios  = new Map(); // key → HTML Audio (即時フォールバック)
+
+    Object.entries(SECRET_CODES).forEach(([key, url]) => {
+      const a = new Audio(url);
+      a.preload = 'auto';
+      secretAudios.set(key, a);
+      prefetch(url, (raw, buf) => {
+        if (buf) secretBufs.set(key, buf); else secretPending.set(key, raw);
+      });
+    });
+
     // ── AudioContext init (capture phase = runs before any button handler) ──
     function initCtx() {
       if (ctx) return;
@@ -263,6 +285,10 @@
         ctx.decodeAudioData(hagemaPending).then(b => { hagemaBuf = b; }).catch(() => {});
         hagemaPending = null;
       }
+      for (const [key, raw] of secretPending) {
+        ctx.decodeAudioData(raw).then(b => secretBufs.set(key, b)).catch(() => {});
+      }
+      secretPending.clear();
     }
     document.addEventListener('pointerdown', initCtx, { capture: true, once: true });
 
@@ -405,6 +431,29 @@
       setTimeout(() => btn.classList.remove(cls), cls === 'local' ? 200 : 420);
     }
 
+    // ── Secret code playback ──
+    function playSecretAudio(key) {
+      initCtx();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      const t = ctx.currentTime + (ctx.state === 'running' ? 0.005 : 0.2);
+      const buf = secretBufs.get(key);
+      if (buf) {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(t);
+      } else {
+        const a = secretAudios.get(key);
+        if (a) { a.currentTime = 0; a.play().catch(() => {}); }
+      }
+    }
+
+    function matchSecret(text) {
+      const t = text.replace(/\s/g, '');
+      return Object.keys(SECRET_CODES).find(k => k === t) ?? null;
+    }
+
     // ── Text reading (50-on placeholder via speechSynthesis) ──
     // 一文字ずつキューに積む — send ボタンのクリックハンドラ内で呼ぶと
     // iOS Safari のジェスチャー制限を回避できる
@@ -429,7 +478,12 @@
     function handleSend() {
       const text = textInput.value.trim();
       if (!text) return;
-      speakText(text);
+      const secret = matchSecret(text);
+      if (secret) {
+        playSecretAudio(secret);
+      } else {
+        speakText(text);
+      }
       if (mqttClient?.connected) {
         mqttClient.publish(TOPIC_TEXTS, JSON.stringify({ text, sid: SESSION_ID }));
       }
@@ -502,7 +556,10 @@
           if (msg.sid !== SESSION_ID) tap(msg.b, false);
 
         } else if (topic === TOPIC_TEXTS) {
-          if (msg.sid !== SESSION_ID && msg.text) speakText(msg.text);
+          if (msg.sid !== SESSION_ID && msg.text) {
+            const secret = matchSecret(msg.text);
+            if (secret) playSecretAudio(secret); else speakText(msg.text);
+          }
 
         } else if (topic === TOPIC_PRESENCE) {
           if (msg.leave) {
