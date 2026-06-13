@@ -227,19 +227,15 @@
       secretAudios.set(key, new Audio(url));
     });
 
-    // iOS requires audio.play() once inside a user gesture per element;
-    // after that, play() works from any context (e.g. MQTT callbacks).
-    // muted=true during unlock so the brief play/pause is completely silent.
+    // Unlock the iOS audio session with a separate silent dummy element.
+    // Using a dummy avoids AbortError when the actual element's play()
+    // is called in the same gesture (same tap = unlock + playback).
+    const _silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
     let htmlAudioUnlocked = false;
     function unlockHTMLAudio() {
       if (htmlAudioUnlocked) return;
       htmlAudioUnlocked = true;
-      [wakaranaiAudio, aoruAudio, hagemasuAudio, ...secretAudios.values()].forEach(a => {
-        a.muted = true;
-        a.play()
-          .then(() => { a.pause(); a.currentTime = 0; a.muted = false; })
-          .catch(() => { a.muted = false; });
-      });
+      _silentAudio.play().catch(() => {});
     }
 
     // ── AudioContext init — for synthesized sounds only ──
