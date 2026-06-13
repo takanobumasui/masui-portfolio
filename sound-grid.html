@@ -171,6 +171,35 @@
       color: var(--fg);
       border-color: rgba(255,255,255,0.5);
     }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.9rem;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.3s ease;
+    }
+    #overlay-status {
+      font-size: clamp(0.6rem, 2vw, 0.72rem);
+      letter-spacing: 0.25em;
+      color: #fbbf24;
+      transition: color 0.3s;
+    }
+    #overlay-status.is-connected { color: #00b4d8; }
+    #overlay-hint {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 300;
+      font-size: clamp(1rem, 4vw, 1.4rem);
+      letter-spacing: 0.4em;
+      color: rgba(255,255,255,0.8);
+    }
 
   </style>
 </head>
@@ -188,6 +217,11 @@
       <input id="textInput" type="text" maxlength="7" placeholder="ひらがな（7文字まで）" autocomplete="off" autocorrect="off" spellcheck="false">
       <button id="sendBtn">send</button>
     </div>
+  </div>
+
+  <div id="overlay">
+    <p id="overlay-status">接続中…</p>
+    <p id="overlay-hint">タップして開始</p>
   </div>
 
   <!-- MQTT.js — public broker, no account needed -->
@@ -250,6 +284,33 @@
       } catch (_) {}
     }
     document.addEventListener('pointerdown', () => { initCtx(); unlockHTMLAudio(); }, { capture: true, once: true });
+
+    // ── Overlay ──
+    // Dismisses when BOTH conditions are met:
+    //   1. user tapped  → audio unlocked
+    //   2. MQTT connected → sends & receives work immediately
+    let overlayTapped    = false;
+    let overlayMqttReady = false;
+
+    function mayDismissOverlay() {
+      if (!overlayTapped || !overlayMqttReady) return;
+      const ov = document.getElementById('overlay');
+      if (!ov) return;
+      ov.style.opacity = '0';
+      ov.style.pointerEvents = 'none';
+      setTimeout(() => ov.remove(), 300);
+    }
+
+    document.getElementById('overlay').addEventListener('pointerdown', () => {
+      overlayTapped = true;
+      // If MQTT not ready yet, update hint text so user knows we're waiting
+      const hint = document.getElementById('overlay-hint');
+      if (hint && !overlayMqttReady) hint.textContent = '接続中…';
+      mayDismissOverlay();
+    }, { once: true });
+
+    // Solo/offline fallback: dismiss after 12 s regardless of MQTT state
+    setTimeout(() => { overlayMqttReady = true; mayDismissOverlay(); }, 12_000);
 
     // ── Sound helpers ──
 
@@ -435,6 +496,9 @@
       const el = document.getElementById('status');
       el.textContent = text;
       el.className = 'status' + (cls ? ' ' + cls : '');
+      // Mirror to overlay while it still exists
+      const oel = document.getElementById('overlay-status');
+      if (oel) { oel.textContent = text; oel.className = cls || ''; }
     }
 
     // ── MQTT connection ──
@@ -460,6 +524,8 @@
         client.subscribe([TOPIC_TAPS, TOPIC_PRESENCE, TOPIC_TEXTS]);
         setStatus('接続済', 'is-connected');
         publishPresence();
+        overlayMqttReady = true;
+        mayDismissOverlay();
       });
 
       client.on('reconnect', () => {
