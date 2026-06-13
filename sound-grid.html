@@ -56,8 +56,9 @@
       min-height: 1.2em;
       transition: color 0.3s;
     }
-    .status.is-connecting   { color: #00b4d8; }
+    .status.is-connecting   { color: #fbbf24; }
     .status.is-reconnecting { color: #fbbf24; }
+    .status.is-connected    { color: #00b4d8; }
 
     .listeners {
       font-size: clamp(0.55rem, 1.4vw, 0.65rem);
@@ -545,7 +546,7 @@
 
       client.on('connect', () => {
         client.subscribe([TOPIC_TAPS, TOPIC_PRESENCE, TOPIC_TEXTS]);
-        setStatus('接続済');
+        setStatus('接続済', 'is-connected');
         publishPresence();
       });
 
