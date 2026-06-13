@@ -372,7 +372,13 @@
 
     function playSound(id) {
       if (!ctx) return;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === 'suspended') {
+        // iOS re-suspends after inactivity; restart with silent source unlock each time
+        const ub = ctx.createBuffer(1, 1, ctx.sampleRate);
+        const us = ctx.createBufferSource();
+        us.buffer = ub; us.connect(ctx.destination); us.start(0);
+        ctx.resume();
+      }
       const t = ctx.currentTime + (ctx.state === 'running' ? 0.001 : 0.2);
 
       switch (id) {
