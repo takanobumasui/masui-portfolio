@@ -239,45 +239,13 @@
     const SESSION_ID = Math.random().toString(36).slice(2, 10);
     const presenceMap = new Map(); // sid → lastSeen (ms)
 
-    let ctx = null;          // AudioContext (created on first tap)
-    let wakaranaiBuf = null; // decoded AudioBuffer for わからない
-    let wakaranaiPending = null;
-    let aoruBuf = null;      // decoded AudioBuffer for あおる
-    let aoruPending = null;
-    let hagemaBuf = null;    // decoded AudioBuffer for はげます
-    let hagemaPending = null;
+    let ctx = null;      // AudioContext — synthesized sounds only
     let mqttClient = null;
 
-    function prefetch(url, onReady) {
-      fetch(url)
-        .then(r => r.arrayBuffer())
-        .then(ab => {
-          if (ctx) {
-            ctx.decodeAudioData(ab).then(b => onReady(null, b)).catch(() => {});
-          } else {
-            // OfflineAudioContext needs no user gesture — decode immediately
-            try {
-              const oCtx = new OfflineAudioContext(2, 1, 44100);
-              oCtx.decodeAudioData(ab.slice(0))
-                .then(b => onReady(null, b))
-                .catch(() => onReady(ab, null));
-            } catch (_) {
-              onReady(ab, null);
-            }
-          }
-        })
-        .catch(() => {});
-    }
-
-    prefetch('assets/sounds/wakaranai.m4a', (raw, buf) => {
-      if (buf) wakaranaiBuf = buf; else wakaranaiPending = raw;
-    });
-    prefetch('assets/sounds/aoru.m4a', (raw, buf) => {
-      if (buf) aoruBuf = buf; else aoruPending = raw;
-    });
-    prefetch('assets/sounds/hagemasu.m4a', (raw, buf) => {
-      if (buf) hagemaBuf = buf; else hagemaPending = raw;
-    });
+    // ── File sounds: HTML Audio ignores the iOS mute (silent) switch ──
+    const wakaranaiAudio = new Audio('assets/sounds/wakaranai.m4a');
+    const aoruAudio      = new Audio('assets/sounds/aoru.m4a');
+    const hagemasuAudio  = new Audio('assets/sounds/hagemasu.m4a');
 
     // ── 裏コード ─────────────────────────────────────────────
     // キー: 送信テキスト（スペース無視・完全一致）
@@ -288,50 +256,41 @@
     };
     // ────────────────────────────────────────────────────────
 
-    const secretBufs    = new Map(); // key → decoded AudioBuffer
-    const secretPending = new Map(); // key → raw ArrayBuffer (decode待ち)
-
+    const secretAudios = new Map();
     Object.entries(SECRET_CODES).forEach(([key, url]) => {
-      prefetch(url, (raw, buf) => {
-        if (buf) secretBufs.set(key, buf); else secretPending.set(key, raw);
-      });
+      secretAudios.set(key, new Audio(url));
     });
 
-    // ── AudioContext init (capture phase = runs before any button handler) ──
+    // iOS requires audio.play() once inside a user gesture per element;
+    // after that, play() works from any context (e.g. MQTT callbacks).
+    let htmlAudioUnlocked = false;
+    function unlockHTMLAudio() {
+      if (htmlAudioUnlocked) return;
+      htmlAudioUnlocked = true;
+      [wakaranaiAudio, aoruAudio, hagemasuAudio, ...secretAudios.values()].forEach(a => {
+        a.play().then(() => a.pause()).catch(() => {});
+      });
+    }
+
+    // ── AudioContext init — for synthesized sounds only ──
     function initCtx() {
       if (ctx) return;
       try {
         ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Silent BufferSource — the only reliable iOS Safari unlock trigger
         const b = ctx.createBuffer(1, 1, ctx.sampleRate);
         const s = ctx.createBufferSource();
         s.buffer = b; s.connect(ctx.destination); s.start(0);
         ctx.resume();
-      } catch (_) { return; }
-      if (wakaranaiPending) {
-        ctx.decodeAudioData(wakaranaiPending).then(b => { wakaranaiBuf = b; }).catch(() => {});
-        wakaranaiPending = null;
-      }
-      if (aoruPending) {
-        ctx.decodeAudioData(aoruPending).then(b => { aoruBuf = b; }).catch(() => {});
-        aoruPending = null;
-      }
-      if (hagemaPending) {
-        ctx.decodeAudioData(hagemaPending).then(b => { hagemaBuf = b; }).catch(() => {});
-        hagemaPending = null;
-      }
-      for (const [key, raw] of secretPending) {
-        ctx.decodeAudioData(raw).then(b => secretBufs.set(key, b)).catch(() => {});
-      }
-      secretPending.clear();
+      } catch (_) {}
     }
-    document.addEventListener('pointerdown', initCtx, { capture: true, once: true });
+    document.addEventListener('pointerdown', () => { initCtx(); unlockHTMLAudio(); }, { capture: true, once: true });
 
     // ── Tap-to-start overlay ──
     // Forces AudioContext creation on user gesture so sounds are ready immediately
     // for both local presses and incoming remote taps.
     const overlay = document.getElementById('overlay');
     overlay.addEventListener('pointerdown', () => {
+      unlockHTMLAudio(); // capture listener already called this, but once: true guard makes it safe
       overlay.style.opacity = '0';
       overlay.style.pointerEvents = 'none';
       setTimeout(() => overlay.remove(), 320);
@@ -361,15 +320,15 @@
       src.start(t);
     }
 
-    // ── playSound ──
-    // When ctx is suspended (first tap), currentTime=0 and resume() is async.
-    // We schedule 200 ms ahead so resume() finishes before the note starts.
-    // On subsequent taps (ctx running) 5 ms is imperceptible.
-
     function playSound(id) {
+      // File sounds — HTML Audio ignores iOS mute switch
+      if (id === 3) { hagemasuAudio.currentTime  = 0; hagemasuAudio.play().catch(() => {}); return; }
+      if (id === 4) { wakaranaiAudio.currentTime = 0; wakaranaiAudio.play().catch(() => {}); return; }
+      if (id === 8) { aoruAudio.currentTime      = 0; aoruAudio.play().catch(() => {}); return; }
+
+      // Synthesized sounds — Web Audio API
       if (!ctx) return;
       if (ctx.state === 'suspended') {
-        // iOS re-suspends after inactivity; restart with silent source unlock each time
         const ub = ctx.createBuffer(1, 1, ctx.sampleRate);
         const us = ctx.createBufferSource();
         us.buffer = ub; us.connect(ctx.destination); us.start(0);
@@ -378,7 +337,7 @@
       const t = ctx.currentTime + (ctx.state === 'running' ? 0.001 : 0.2);
 
       switch (id) {
-        case 0: // なとく
+        case 0: // なっとく
           o(523, 'sine', t, 0.9, 0.22);
           o(440, 'sine', t + 0.18, 0.7, 0.38);
           break;
@@ -391,24 +350,6 @@
           o(659, 'sine', t + 0.1, 0.75, 0.2);
           o(784, 'sine', t + 0.2, 0.9,  0.38);
           break;
-        case 3: { // はげます — audio file
-          if (hagemaBuf) {
-            const src = ctx.createBufferSource();
-            src.buffer = hagemaBuf;
-            src.connect(ctx.destination);
-            src.start(t);
-          }
-          break;
-        }
-        case 4: { // わからない — audio file
-          if (wakaranaiBuf) {
-            const src = ctx.createBufferSource();
-            src.buffer = wakaranaiBuf;
-            src.connect(ctx.destination);
-            src.start(t);
-          }
-          break;
-        }
         case 5: // しずかに
           o(220, 'sine', t,        0.25, 1.6);
           o(330, 'sine', t + 0.06, 0.18, 1.5);
@@ -423,15 +364,6 @@
           noise(t + 0.22, 0.1, 0.85);
           noise(t + 0.44, 0.1, 0.85);
           break;
-        case 8: { // あおる — audio file
-          if (aoruBuf) {
-            const src = ctx.createBufferSource();
-            src.buffer = aoruBuf;
-            src.connect(ctx.destination);
-            src.start(t);
-          }
-          break;
-        }
       }
     }
 
@@ -476,21 +408,8 @@
 
     // ── Secret code playback ──
     function playSecretAudio(key) {
-      if (!ctx) return;
-      if (ctx.state === 'suspended') {
-        const ub = ctx.createBuffer(1, 1, ctx.sampleRate);
-        const us = ctx.createBufferSource();
-        us.buffer = ub; us.connect(ctx.destination); us.start(0);
-        ctx.resume();
-      }
-      const t = ctx.currentTime + (ctx.state === 'running' ? 0.001 : 0.2);
-      const buf = secretBufs.get(key);
-      if (buf) {
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.connect(ctx.destination);
-        src.start(t);
-      }
+      const a = secretAudios.get(key);
+      if (a) { a.currentTime = 0; a.play().catch(() => {}); }
     }
 
     function matchSecret(text) {
