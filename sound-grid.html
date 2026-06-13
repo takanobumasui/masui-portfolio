@@ -244,8 +244,11 @@
 
     // ── File sounds: HTML Audio ignores the iOS mute (silent) switch ──
     const wakaranaiAudio = new Audio('assets/sounds/wakaranai.m4a');
+    wakaranaiAudio.preload = 'auto';
     const aoruAudio      = new Audio('assets/sounds/aoru.m4a');
+    aoruAudio.preload = 'auto';
     const hagemasuAudio  = new Audio('assets/sounds/hagemasu.m4a');
+    hagemasuAudio.preload = 'auto';
 
     // ── 裏コード ─────────────────────────────────────────────
     // キー: 送信テキスト（スペース無視・完全一致）
@@ -258,18 +261,25 @@
 
     const secretAudios = new Map();
     Object.entries(SECRET_CODES).forEach(([key, url]) => {
-      secretAudios.set(key, new Audio(url));
+      const a = new Audio(url);
+      a.preload = 'auto';
+      secretAudios.set(key, a);
     });
 
-    // Unlock the iOS audio session with a separate silent dummy element.
-    // Using a dummy avoids AbortError when the actual element's play()
-    // is called in the same gesture (same tap = unlock + playback).
-    const _silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+    // iOS requires each audio element to have play() called once in a user gesture.
+    // The overlay is a separate gesture from button taps, so we can safely unlock
+    // all elements here (muted) without conflicting with actual playback.
+    // This also causes the browser to buffer the files, removing load-time delays.
     let htmlAudioUnlocked = false;
     function unlockHTMLAudio() {
       if (htmlAudioUnlocked) return;
       htmlAudioUnlocked = true;
-      _silentAudio.play().catch(() => {});
+      [wakaranaiAudio, aoruAudio, hagemasuAudio, ...secretAudios.values()].forEach(a => {
+        a.muted = true;
+        a.play()
+          .then(() => { a.pause(); a.currentTime = 0; a.muted = false; })
+          .catch(() => { a.muted = false; });
+      });
     }
 
     // ── AudioContext init — for synthesized sounds only ──
