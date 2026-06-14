@@ -249,6 +249,8 @@
     aoruAudio.preload = 'auto';
     const hagemasuAudio  = new Audio('assets/sounds/hagemasu.m4a');
     hagemasuAudio.preload = 'auto';
+    const iineAudio      = new Audio('audio/iine.m4a');
+    iineAudio.preload = 'auto';
 
     // ── 裏コード ─────────────────────────────────────────────
     // キー: 送信テキスト（スペース無視・完全一致）
@@ -274,7 +276,7 @@
     function unlockHTMLAudio() {
       if (htmlAudioUnlocked) return;
       htmlAudioUnlocked = true;
-      [wakaranaiAudio, aoruAudio, hagemasuAudio, ...secretAudios.values(), ...SPECIAL_AUDIO_MAP.values()].forEach(a => {
+      [wakaranaiAudio, aoruAudio, hagemasuAudio, iineAudio, ...secretAudios.values(), ...SPECIAL_AUDIO_MAP.values()].forEach(a => {
         a.muted = true;
         a.play()
           .then(() => { a.pause(); a.currentTime = 0; a.muted = false; })
@@ -348,6 +350,7 @@
 
     function playSound(id) {
       // File sounds — HTML Audio ignores iOS mute switch
+      if (id === 2) { iineAudio.currentTime      = 0; iineAudio.play().catch(() => {}); return; }
       if (id === 3) { hagemasuAudio.currentTime  = 0; hagemasuAudio.play().catch(() => {}); return; }
       if (id === 4) { wakaranaiAudio.currentTime = 0; wakaranaiAudio.play().catch(() => {}); return; }
       if (id === 8) { aoruAudio.currentTime      = 0; aoruAudio.play().catch(() => {}); return; }
