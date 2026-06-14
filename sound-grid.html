@@ -446,8 +446,19 @@
     // ── Text reading (50-on placeholder via speechSynthesis) ──
     // 一文字ずつキューに積む — send ボタンのクリックハンドラ内で呼ぶと
     // iOS Safari のジェスチャー制限を回避できる
+    // 特定ワードに対応する専用音声ファイル
+    const SPECIAL_AUDIO = {
+      'まとば': 'audio/matoba.m4a',
+    };
+
     function speakText(text) {
-      const chars = [...text].filter(c => /\S/.test(c));
+      const trimmed = text.trim();
+      if (SPECIAL_AUDIO[trimmed]) {
+        const audio = new Audio(SPECIAL_AUDIO[trimmed]);
+        audio.play().catch(() => {});
+        return;
+      }
+      const chars = [...trimmed].filter(c => /\S/.test(c));
       if (!chars.length) return;
       if (!('speechSynthesis' in window)) return;
       speechSynthesis.cancel();
