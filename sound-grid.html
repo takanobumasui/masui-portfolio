@@ -446,16 +446,29 @@
     // ── Text reading (50-on placeholder via speechSynthesis) ──
     // 一文字ずつキューに積む — send ボタンのクリックハンドラ内で呼ぶと
     // iOS Safari のジェスチャー制限を回避できる
+    // 男性的・機械的な声で読み上げるボイスを選ぶ
+    function pickMaleVoice() {
+      const voices = speechSynthesis.getVoices();
+      // 男性っぽいキーワードを含む日本語ボイスを優先
+      const maleKeywords = ['male', 'man', 'otoko', 'kyoko'.toLowerCase()];
+      const jaVoices = voices.filter(v => v.lang.startsWith('ja'));
+      // "Kyoko"(女性)は除外し、その他の日本語ボイスを使う
+      const nonFemale = jaVoices.filter(v => !['kyoko', 'female', 'woman'].some(k => v.name.toLowerCase().includes(k)));
+      return nonFemale[0] ?? jaVoices[0] ?? null;
+    }
+
     function speakText(text) {
       const chars = [...text].filter(c => /\S/.test(c));
       if (!chars.length) return;
       if (!('speechSynthesis' in window)) return;
       speechSynthesis.cancel();
+      const voice = pickMaleVoice();
       chars.forEach(char => {
         const utt = new SpeechSynthesisUtterance(char);
         utt.lang = 'ja-JP';
-        utt.rate = 0.75;
-        utt.pitch = 1.0;
+        if (voice) utt.voice = voice;
+        utt.rate = 0.9;   // 速めにして機械的なテンポに
+        utt.pitch = 0.5;  // 低くして男性的・機械的な声に
         speechSynthesis.speak(utt);
       });
     }
